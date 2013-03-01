@@ -1,0 +1,5 @@
+* spice netlist for InductEx4
+L1    1   2   1
+* NB: Ports must be numbered sequentually
+P1     1   2
+.end

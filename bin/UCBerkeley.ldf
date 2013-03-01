@@ -1,0 +1,82 @@
+*** Layer Definition File for UC Berkeley SQUID washers
+*** Author: Coenrad Fourie
+*** Modified by: Steven Anton
+*** Last Modification: 14-Feb-2013
+*** Info: Monolayer, assume Nb
+*
+$Parameters
+* Global parameters
+Units             =  1e-6
+*  CIFUnitsPerMicron lets InductEx know the CIF coordinate scale
+*    If your layout tool puts out CIF files with 100 units per micron (default), use 100
+*    If your layout tool uses 1000 units per micron (XIC if not stripped for export), use 1000
+*    If you have no idea what this means, keep CIFUnitsPerMicron = 100
+CIFUnitsPerMicron =  1000
+gapMax            =  0.2
+AbsMin            =  0.002
+ProcessHasGroundPlane = FALSE
+LastDieLayerOrder =  1
+BlankAllLayer     =  60
+BlankXLayer       =  61
+BlankYLayer       =  62
+TermLayer         =  19
+TextLayer         =  18
+Lambda            =  0.09
+HFilaments        =  1
+Colour            =  1
+TerminalInRange   =  0.001
+$End
+*
+* LAYERS
+** Number is GDS layer number
+** Name is layer as applied in geometry input file
+** Bias is the mask-wafer offset of an object's border in this layer
+** Thickness is the layer thickness in microns
+** Lamba is the layer's penetration depth in microns
+** Sigma is the layer's bulk conductivity (only for resistive layers, and not yet used)
+** Order is the layer's order during wafer construction - the lowest layer starts at 0, but does not need to be Ground (as in ADP)
+** Mask is the mask polarity: {1 = layer objects define material
+**                             0 = layer objects not translated to model
+**                            -1 = layer objects define cutots }
+** Filmtype is the layer material typ: {S = superconductor, N = normal conductor, I = isolator, A = auxiliary/don't care }
+** HFilaments is the number of filaments segments are divided into over the height (overrides global HFilaments)
+** Colour is the DXF colour (for viewing purposes)
+**
+*
+* M0  (fake ground layer to tie up order 0)
+$Layer
+Number     =     30
+Name       =     M0
+Bias       =     0
+Thickness  =     0.2
+Lambda     =     0.09
+Order      =     0
+Mask       =     1
+Filmtype   =     S
+HFilaments =     1
+Colour     =     10
+$End
+*
+* M1
+$Layer
+Number     =     1
+Name       =     M1
+Bias       =     0
+Thickness  =     0.2
+Lambda     =     0.09
+Order      =     1
+Mask       =     1
+Filmtype   =     S
+HFilaments =     1
+Colour     =     10
+$End
+*
+* TERM
+$Layer
+Number     =     19
+Name       =     TERM
+Bias       =     0
+Thickness  =     0.2
+Order      =     14
+Mask       =    -4
+$End

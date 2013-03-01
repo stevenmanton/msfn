@@ -1,0 +1,19 @@
+#############
+## Matlab
+#############
+
+*.asv
+
+
+#############
+## FastHenry and InductEx
+#############
+
+a.txt
+fastout.out
+ix.cur
+j_P1.mat
+sol.txt
+washer_test.cif
+x.inp
+Zc.mat
