@@ -1,7 +1,7 @@
 *** Layer Definition File for UC Berkeley SQUID washers
 *** Author: Coenrad Fourie
 *** Modified by: Steven Anton
-*** Last Modification: 14-Feb-2013
+*** Last Modification: 01-Mar-2013
 *** Info: Monolayer, assume Nb
 *
 $Parameters
@@ -48,7 +48,7 @@ $Layer
 Number     =     30
 Name       =     M0
 Bias       =     0
-Thickness  =     0.2
+Thickness  =     0.15
 Lambda     =     0.09
 Order      =     0
 Mask       =     1
@@ -62,7 +62,7 @@ $Layer
 Number     =     1
 Name       =     M1
 Bias       =     0
-Thickness  =     0.2
+Thickness  =     0.15
 Lambda     =     0.09
 Order      =     1
 Mask       =     1
@@ -76,7 +76,7 @@ $Layer
 Number     =     19
 Name       =     TERM
 Bias       =     0
-Thickness  =     0.2
+Thickness  =     0.15
 Order      =     14
 Mask       =    -4
 $End

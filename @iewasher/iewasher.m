@@ -1,97 +1,101 @@
+classdef iewasher < handle
+   %iewasher Class calculates mean square flux noise of square loop
+   % Detailed explanation...
+   %
+   % iewasher Properties:
+   % ----- Solution properties -----
+   %    L - Computed inductance (pH)
+   
+   %{
+   ----- A note on units -----
 
-%{
+   Converting between current density J, magnetic field B, and flux Phi can
+   get a bit tricky, especially because certain quantities are normalized.
+   Below, I hope to clarify my conventions for units so that we can
+   properly keep track of what's going on.
 
------ A note on units -----
+   Current density:
 
-Converting between current density J, magnetic field B, and flux Phi can
-get a bit tricky, especially because certain quantities are normalized.
-Below, I hope to clarify my conventions for units so that we can properly
-keep track of what's going on.
+   Because the current density is normalized, we can simply say that the
+   units of the current are amps/um^2, such that the total circulating
+   current (integrated over the width and thickness) is 1 Amp. Obviously,
+   this is not physical, but it's fine in terms of keeping track of units.
 
-Current density:
+   Magnetic field: Is in units of Tesla.
 
-Because the current density is normalized, we can simply say that the units
-of the current are amps/um^2, such that the total circulating current
-(integrated over the width and thickness) is 1 Amp. Obviously, this is not
-physical, but it's fine in terms of keeping track of units.
+   "Total" magnetic field (<B^2>*A). Is in units of Tesla*um^2
 
-Magnetic field:
-Is in units of Tesla.
-
-"Total" magnetic field (<B^2>*A).
-Is in units of Tesla*um^2
-
-Mean square flux:
-Units of flux quantum.
-
-
-%}
-
-classdef iewasher < handle % Like a handle, but copyable
+   Mean square flux: Units of flux quantum.
+   %}
    
    properties
       % ----- Geometry properties -----
+      
+      % geom - Struct with inner and outer dimensions of loop
       geom = struct('oDim',[4 4],'iDim',[2 2],'fixedParam','W')
       
       % ----- Material properties -----
-      lambda = 0.09
-      thickness = 0.15
-      spinDens = 2.5e17;
+      
+      lambda = 0.09        % Penetration depth (um)
+      thickness = 0.15     % Film thickness of loop (um)
+      spinDens = 2.5e17;   % Surface spin density (1/m^2)
       
       % ----- Solution properties -----
-      runStartTime % time stamp set when 'run' command is executed
+      
+      runStartTime % Time stamp set when 'run' command is executed
       
       L        % Extracted inductance (pH)
       
       % Extracted from *.inp file:
       nodes    % struct containing information on all nodes
       edges    % struct containing information on all segments
-      % Extracted from J*.mat and matched to info in inp file:
       
-      Bsurf    % [x, y, z, Bx, By, Bz]
-      B2surf = nan(1,3)
-      B2insEdge = nan(1,3)
-      B2outEdge = nan(1,3)
+      Bsurf    % Vector with magnetic field info: [x, y, z, Bx, By, Bz]
+      B2surf = nan(1,3)    % Components of <B_surf^2> (T^2*um^2)
+      B2insEdge = nan(1,3) % Components of <B_insedge^2> (T^2*um^2)
+      B2outEdge = nan(1,3) % Components of <B_outedge^2> (T^2*um^2)
+      
       % [sum(Bx^2), sum(By^2), sum(Bz^2)]
       % Total magnetic field, calculated for the lower left corner
       % and multiplied by 4.
       
-      % Ratio of J^2_data / J^2 Analytic
-      relJ2AnalyticNumeric
+      
+      relJ2AnalyticNumeric % Ratio of int(J_analytic^2) / int(J_numeric^2)
       % Optimum value of Van Duzer fudge factor to match numeric J(x)
       aOptimum
-      % Ratio of B^2_data / B^2 Analytic
-      relB2AnalyticNumeric
+      relB2AnalyticNumeric % Ratio of int(B_analytic^2) / int(B_numeric^2)
       
-      errorFromJ
       % Error in the expansion of epsilon (see Mathematica workbook), that
       % is, the error introduced by not integrating entirely to the edge.
       errorFromEpsExpansion
       
-      % Estimate Phi^2 using numerical current density and analytic
-      % equation (Eq. (5) from Bialczak)
+      % Estimated Phi^2 using analytic current density equation (Eq. (5)
+      % from Bialczak)
       Phi2estimateFromAnalyticJ
+      % Estimated Phi^2 using analytic magnetic field
       Phi2estimateFromAnalyticB
       
-      err   % error generated during the 'run' command
+      err  % error generated during the 'run' command
       
       % ----- Numerical properties -----
+      
       runIter = 1 % Current iteration of the run
       gap = struct('rel',1,'mode','rel')
       cren = struct('H',20,'line',20*ones(7,1),'hole',20*ones(6,1), ...
          'mode','default', 'N',[18 18])
-      iterInfo
+      
+      iterInfo % Struct with information saved from each iteration
       
       runParallel = true % run code (magnetic field) in parallel?
-      labNum = 1
       
       % ----- Folder properties -----
-      foldRoot = ['C:\Users\Clarke\Dropbox\Berkeley\MATLAB\',...
-         'InductEx programs\bin2\']
-      %       folder = ['C:\Users\santon\Dropbox\Berkeley\MATLAB\',...
-      %           'InductEx programs\bin2\']
+      
+      % Folder where executables are stored
+      foldRoot = 'C:\Users\Clarke\Dropbox\Berkeley\MATLAB\github\msfn\bin\'
       
       % ----- Plotting properties -----
+      
+      % Plot the optimized crenellation widths versus iteration?
       plotOptimizeCrenWidths = false
    end
    
@@ -148,10 +152,13 @@ classdef iewasher < handle % Like a handle, but copyable
    methods
       %% Class constructor:
       function iew = iewasher()
+         % Class constructor... nothing special here.
       end % function
       
       %% copy
       function iewB = copy(iewA,iewB)
+         % Perform a deep copy of iewasher object
+         
          % Get metadata from iewasher class (we need a list of all the
          % variables and their properties in order to perform the copy).
          % Note that this is only a shallow copy. This routine won't do a
@@ -227,7 +234,7 @@ classdef iewasher < handle % Like a handle, but copyable
       
       function val = get.wGap(iew)
          % Gap in the SQUID loop (proportional to the inner dimension)
-         val = (1/2) * iew.iDim(2);
+         val = (1/4) * iew.iDim(2);
       end
       
       %% Get functions (solution)
@@ -284,11 +291,6 @@ classdef iewasher < handle % Like a handle, but copyable
          val = iew.analyticFun / sum(iew.Phi2surf(1:2));
       end
       
-      % Ratio of numerically computed <Phi^2> to the analytic <Phi^2>:
-      function val = get.errorFromJ(iew)
-         val = 1;
-      end
-      
       % Ratio of the numerically computed <Phi^2> to the analytic <Phi^2>
       % that can be explained by the difference in <B^2> across the
       % linewidth. A value of unity means that the contribution of corners
@@ -320,12 +322,6 @@ classdef iewasher < handle % Like a handle, but copyable
                   iew.(mc.PropertyList(i).Name);
             end
          end
-      end
-      
-      function folder = get.folder(iew)
-%          folder = fullfile(iew.foldRoot,['lab',num2str(labindex),'\']);
-%          folder = fullfile(iew.foldRoot,['lab',num2str(iew.labNum),'\']);
-         folder = iew.foldRoot;
       end
       
       %% Set geometry functions
@@ -397,9 +393,21 @@ classdef iewasher < handle % Like a handle, but copyable
          iew.geom.fixedParam = geomIn.fixedParam;
       end
       
+      %% Set functions (other)
+      function set.foldRoot(iew,val)
+         if exist(val,'dir')
+            if ~exist([val,'fasthenry.exe'],'file')
+               disp('FastHenry executable (fasthenry.exe) is missing!')
+            end
+         else
+            disp('Root folder does not exist. Code will crash.')
+         end
+         iew.foldRoot = val;
+      end
+      
       %% writeCIR
       function writeCIR(iew)
-         fid = fopen([iew.folder,'washer.cir'],'wt');
+         fid = fopen([iew.foldRoot,'washer.cir'],'wt');
          
          fprintf(fid,'* spice netlist for InductEx4\n');
          fprintf(fid,'L1    1   2   1\n');
@@ -416,7 +424,7 @@ classdef iewasher < handle % Like a handle, but copyable
          
          oDimCIF = iew.oDim*1000;
          iDimCIF = iew.iDim*1000;
-         wGapCIF = iew.wGap*1000/2; % half-width of gap (i.e. the y value)
+         wGapCIF = iew.wGap*1000; % width of gap (slit)
          lWid = (oDimCIF - iDimCIF)/2;
          
          % ----- Compute necessary points for washer polygon -----
@@ -486,7 +494,7 @@ classdef iewasher < handle % Like a handle, but copyable
          
          % --------------- Write the file ---------------
          
-         fid = fopen([iew.folder,'washer_test.cif'],'wt');
+         fid = fopen([iew.foldRoot,'washer_test.cif'],'wt');
          
          fprintf(fid,'(! CIF file made by santon)\n');
          fprintf(fid,'\n');
@@ -545,7 +553,7 @@ classdef iewasher < handle % Like a handle, but copyable
       
       %% writeLDF
       function writeLDF(iew)
-         fid = fopen([iew.folder,'UCBerkeley.ldf'],'wt');
+         fid = fopen([iew.foldRoot,'UCBerkeley.ldf'],'wt');
          
          fprintf(fid,'*** Layer Definition File for UC Berkeley SQUID washers\n');
          fprintf(fid,'*** Author: Coenrad Fourie\n');
@@ -654,7 +662,7 @@ classdef iewasher < handle % Like a handle, but copyable
          else debugPlot = false; end
          
          % ----- Run the iteration -----
-         iew.runTimeStamp = datevec(now);
+         iew.runStartTime = datevec(now);
          
          iew.runIter = 0;
          hitErr = false;
@@ -672,7 +680,7 @@ classdef iewasher < handle % Like a handle, but copyable
                iewTemp.writeCIF();
                
                % Call InductEx with necessary switches
-               [status, result] = dos(['chdir ', iew.folder, ' & ', ...
+               [status, result] = dos(['chdir ', iew.foldRoot, ' & ', ...
                   'inductex washer_test.cif -l UCBerkeley.ldf -i ', ...
                   'x.inp -fh -n washer.cir -k']);
                % Generated files:
@@ -785,8 +793,10 @@ classdef iewasher < handle % Like a handle, but copyable
       
       %% importINP
       function importINP(iew)
+         % Import .inp file generated by FastHenry
+         
          % Path to the input file:
-         filename = [iew.folder,'x.inp'];
+         filename = [iew.foldRoot,'x.inp'];
          
          % Nodes is a struct containing relevant info about nodes:
          iew.nodes = struct('ind',zeros(0,'uint16'), ...
@@ -854,7 +864,7 @@ classdef iewasher < handle % Like a handle, but copyable
       %% importJ
       function importJ(iew)
          % Read from text file:
-         filename = [iew.folder,'J_P1.mat'];
+         filename = [iew.foldRoot,'J_P1.mat'];
          assert(exist(filename,'file') == 2, ...
             'iewasher:importJ:J_P1_missing', ...
             'The file J_P1.mat does not exist.')
@@ -1265,6 +1275,8 @@ classdef iewasher < handle % Like a handle, but copyable
       
       %% calcNodeAreas
       function calcNodeAreas(iew,varargin)
+         % Function calculates the area corresponding to each node
+         
          %{
          This function calculates the effective node areas for the nodes in
          the lower left quarter of the washer. A voronoi diagram
@@ -1417,6 +1429,8 @@ classdef iewasher < handle % Like a handle, but copyable
       
       %% calcB
       function B = calcB(iew,x,y,z)
+         % Calculate the magnetic field at arbitrary position
+         
          %{
          This function calculates the magnetic field at an arbitrary
          position by summing the contribution of each current segment in
@@ -1480,6 +1494,9 @@ classdef iewasher < handle % Like a handle, but copyable
       
       %% calcBpar
       function B = calcBpar(iew,x,y,z)
+         % Calculate the magnetic field at arbitrary position using
+         % parallel loop
+         
          %{
           This function calculates the magnetic field at an arbitrary
           position by summing the contribution of each current segment in
@@ -1564,6 +1581,9 @@ classdef iewasher < handle % Like a handle, but copyable
       
       %% calcTotB
       function calcTotB(iew)
+         % Calculate the average magnetic field and multiply by the total
+         % area
+         
          %{
          This function calculates the average magnetic field over the
          surface of the washer. To do this, we evaluate the field at the
@@ -1750,8 +1770,48 @@ classdef iewasher < handle % Like a handle, but copyable
          analyticAns = analyticAns * 4/pi;
       end
       
+      %% analyticJacrossW
+      
+      % Normalized analytic current distribution across linewidth (J/um^2)
+      function J = analyticJacrossW(iew,x,varargin)
+         % Interpret input arguments:
+         p = inputParser;
+         p.CaseSensitive = false;
+         p.addParamValue('a',exp(-0.27*2*pi),@isnumeric); % from Bialczak
+         p.parse(varargin{:});
+         
+         % Define relevant variables:
+         a = p.Results.a;
+         w = iew.W;
+         lam = iew.lambda;
+         b = iew.thickness;
+         
+         % Define the function and crossover point x0
+         x0 = w/2 - a*lam^2/(2*b);
+         function val = analyticJ(w,b,lam,a,x0,x)
+            v1 = (1-(2*x/w).^2).^(-1/2) .* (abs(x) <= x0);
+            v1(~isfinite(v1)) = 0;
+            
+            v2norm = (1-(2*x0/w).^2).^(-1/2) / ...
+               exp(-(w/2-abs(x0))*b/(a*lam^2));
+            % Definition given in Van Duzer that leads to discontinuity:
+            % v2norm = (1.165/lam) * (w*b/a)^(1/2);
+            v2 = v2norm * exp(-(w/2-abs(x))*b/(a*lam^2)) .* (abs(x) > x0);
+            val = v1+v2;
+         end
+         
+         % Compute the current density (A/um)
+         J = analyticJ(w,b,lam,a,x0,x) / ...
+            quad(@(xx) analyticJ(w,b,lam,a,x0,xx),-x0,x0);
+         % Convert to A/um^2:
+         J = J / iew.thickness;
+      end
+      
       %% checkAnalyticFun
       function checkAnalyticFun(iew,varargin)
+         % Check the accuracy of the analytic answer by comparing it to the
+         % numerical answer.
+         
          % Parse the input arguments
          p = inputParser;
          p.CaseSensitive = false;
@@ -1810,7 +1870,7 @@ classdef iewasher < handle % Like a handle, but copyable
                   
          if plotOn
             figure, subplot(2,2,1)
-            x = linspace(-w/2,w/2,1000);
+            x = linspace(-w/2,w/2,10000);
             plot(yJ,J), hold on, plot(x-iew.R+w/2,JnormFactor*Jfun(x),'r')
             plot(x-iew.R+w/2,JnormFactor*JfunFull(w, iew.thickness, iew.lambda, iew.aOptimum, x),'k')
             xlabel('x ({\mu}m)')
@@ -1822,7 +1882,7 @@ classdef iewasher < handle % Like a handle, but copyable
             semilogx(x+w/2,JnormFactor*Jfun(x),'r')
             semilogx(x+w/2,JnormFactor*JfunFull(w, iew.thickness, iew.lambda, iew.aOptimum, x),'k')
             xlim([min(x(x>0)), w/2])
-            xlabel('x ({\mu}m)')
+            xlabel('R-x ({\mu}m)')
             ylabel('J [(A/({\mu}m)^2]')
          end
          
@@ -1847,7 +1907,7 @@ classdef iewasher < handle % Like a handle, but copyable
             semilogx(-(yB+iew.R-iew.W), B(:,2), '-'), hold on
             semilogx(x+w/2, JtoB*JnormFactor*Jfun(x)*iew.thickness, 'r')
             semilogx(x+w/2, JtoB*JnormFactor*JfunFull(w, iew.thickness, iew.lambda, iew.aOptimum, x)*iew.thickness, 'k')
-            xlabel('x ({\mu}m)')
+            xlabel('R-x ({\mu}m)')
             ylabel('B (T)')
             xlim([min(x(x>0)), w/2])
          end
@@ -1871,8 +1931,9 @@ classdef iewasher < handle % Like a handle, but copyable
       end
       
       %% find indices
-      % ----- Current density across linewidth -----
       function [y, J, inds] = JindsAcrossLinewidth(iew,varargin)
+         % Look up the current density across the linewidth
+         
          p = inputParser;
          p.CaseSensitive = false;
          p.addOptional('plot',false);
@@ -1898,8 +1959,9 @@ classdef iewasher < handle % Like a handle, but copyable
          end
       end
       
-      % ----- Magnetic field across linewidth -----
       function [y, B, inds] = BindsAcrossLinewidth(iew,varargin)
+         % Look up the surface magnetic field across the linewidth 
+         
          p = inputParser;
          p.CaseSensitive = false;
          p.addOptional('plot',false);
@@ -1924,10 +1986,10 @@ classdef iewasher < handle % Like a handle, but copyable
       end
       
       %% Visualize B
-      function visualizeB(iew)
+      function visualizeB(iew,visType)
          
-         %          visType = 'cross-section';
-         visType = 'surface-field';
+         % visType = 'cross-section';
+         % visType = 'surface-field';
          switch upper(visType)
             case 'SURFACE-FIELD'
                % ----- Surface field -----
@@ -1959,27 +2021,123 @@ classdef iewasher < handle % Like a handle, but copyable
                [X,Z] = meshgrid(x,z);
                Y = y*ones(size(X));
                
-               % Calculate the field, then plot it:
+               % Calculate the magnetic field at specified points:
                B = iew.calcBpar(X(:),y,Z(:));
-               iew.plotCIF;
-               quiver3(X(:), Y(:), Z(:), B(:,1), B(:,2), B(:,3), 'b')
-               xlabel('x ({\mu}m)')
-               ylabel('y ({\mu}m)')
-               zlabel('z ({\mu}m)')
                
-               figure
+               doPlotCIF = false;
+               if doPlotCIF
+                  % Calculate the field, then plot it:
+                  iew.plotCIF;
+                  quiver3(X(:), Y(:), Z(:), B(:,1), B(:,2), B(:,3), 'b')
+                  xlabel('x ({\mu}m)')
+                  ylabel('y ({\mu}m)')
+                  zlabel('z ({\mu}m)')
+               end;
+               
                % Plot the cross section of the film:
                patch(-[1 0 0 1 1]*iew.R-[0 1 1 0 0]*iew.iDim(1)/2,...
                   [-1 -1 1 1 -1]*iew.thickness/2, ([0,176,240]+1)/256)
                hold on
                % Plot the vector field:
                quiver(X(:), Z(:), B(:,1), B(:,3), 'b')
-               axis equal
+               % axis equal
                xlabel('x ({\mu}m)'), ylabel('z ({\mu}m)')
          end % switch
       end % function
       
-      %% Plotting
+      %% Plot the current distribution
+      
+      % Plot the current distribution at each node
+      function plotJ(iew,varargin)
+         quiver(iew.nodes.x, iew.nodes.y, ...
+            iew.nodes.J(:,1), iew.nodes.J(:,2), 'autoscalefactor',0.1, ...
+            varargin{:})
+         hold on
+      end
+      
+      % Plot the current distribution components. That is, plot x and y
+      % components separately, just as they are solved:
+      function plotJcomp(iew,varargin)
+         quiver(iew.edges.xMid, iew.edges.yMid, ...
+            iew.edges.J(:,1), iew.edges.J(:,2),varargin{:})
+         hold on
+      end
+      
+      % Plot the current distribution across the linewidth as a function of
+      % iteration:
+      function plotJacrossW(iew)
+         % Choose colors of the lines
+         colors = copper(length(iew.iterInfo));
+         colors = colors(end:-1:1,:);
+         legendstr = {};
+         
+         figure
+         % Loop through all the iterations and plot the current:
+         for i = 1:length(iew.iterInfo)
+            plot(iew.iterInfo{i}.JacrossW(:,1), ...
+               iew.iterInfo{i}.JacrossW(:,2), ...
+               'color',colors(i,:))
+            hold on
+            legendstr{i} = sprintf('Iteration %d',i);
+         end
+         xlabel('x ({\mu}m)')
+         ylabel('J [(A/({\mu}m)^2]')
+         title('Current distribution versus iteration number')
+         
+         legend(legendstr,'location','best');
+      end
+      
+      % Plots the current distribution across W using bars:
+      function plotJbarsAcrossW(iew,varargin)
+         % Find info for the current distribution:
+         [x J inds] = iew.JindsAcrossLinewidth;
+         w = iew.edges.w(inds);
+         
+         % Plot each component:
+         for i=1:length(x)
+            if nargin > 1
+               ColorSpecs = varargin;
+            else
+               ColorSpecs = {'b'};
+            end
+            fill(x(i) + w(i)/2*[1 1 -1 -1 1], [0 1 1 0 0]*J(i),ColorSpecs{:})
+            hold on
+         end
+         
+         % Add captions
+         xlabel('x ({\mu}m)')
+         ylabel('J [(A/({\mu}m)^2]')
+      end
+      
+      % Plots exactly what in the file exported by FastHenry (j_P1.mat):
+      function plotJfile(iew)
+         
+         filename = [iew.foldRoot,'j_P1.mat'];
+         plotOn = true;
+         
+         J = dlmread(filename);
+         J(:,1:3) = J(:,1:3)*1e6; % convert units to um
+         
+         if abs(std(J(:,1))/mean(J(:,1))) < 1e-6 % x is constant
+            J(:,[1 4]) = [];
+         elseif abs(std(J(:,2))/mean(J(:,2))) < 1e-6 % y is constant
+            J(:,[2 5]) = [];
+         elseif abs(std(J(:,3))/mean(J(:,3))) < 1e-6 % z is constant
+            J(:,[3 6]) = [];
+         end
+         
+         if plotOn
+            switch size(J,2)
+               case 4, quiver(J(:,1),J(:,2),J(:,3),J(:,4))
+               case 6, quiver(J(:,1),J(:,2),J(:,4),J(:,5))
+            end
+            
+            xlabel('x ({\mu}m)'), ylabel('y ({\mu}m)')
+            hold on
+         end
+      end % function
+      
+      %% Other plotting:
       function plotNodes(iew)
          plot(iew.nodes.x, iew.nodes.y,'.g')
          hold on
@@ -1991,23 +2149,7 @@ classdef iewasher < handle % Like a handle, but copyable
          iew.plotJ();
       end
       
-      function plotJ(iew,varargin)
-         % Plot the current distribution at each node
-         quiver(iew.nodes.x, iew.nodes.y, ...
-            iew.nodes.J(:,1), iew.nodes.J(:,2), 'autoscalefactor',0.1, ...
-            varargin{:})
-         hold on
-      end
-      
-      function plotJcomp(iew,varargin)
-         % Plot the current distribution components. That is, plot x and
-         % y components separately, just as they are solved:
-         quiver(iew.edges.xMid, iew.edges.yMid, ...
-            iew.edges.J(:,1), iew.edges.J(:,2),varargin{:})
-         hold on
-      end
-      
-      function plotContour(iew)
+      function varargout = plotContour(iew)
          % Function plots a color contour of the magnitude of the current
          % density (sqrt(Jx^2+Jy^2) by creating a 3d interpolation.
          
@@ -2023,38 +2165,45 @@ classdef iewasher < handle % Like a handle, but copyable
          qz = F(X,Y);
          % Remove interpolated values that fall inside the hole:
          qz(abs(X) <= iew.iDim(1)/2 & abs(Y) <= iew.iDim(2)/2) = NaN;
-         contourf(X, Y, qz)
+         [~, figHan] = contourf(X, Y, qz);
          colormap cool
          axis equal
          hold on
+         
+         if nargout == 1, varargout{1} = figHan; end
       end
       
-      function plotJacrossW(iew)
-         colors = copper(length(iew.iterInfo));
-         colors = colors(end:-1:1,:);
-         legendstr = {};
-         
-         figure
-         for i = 1:length(iew.iterInfo)
-            plot(iew.iterInfo{i}.JacrossW(:,1), ...
-               iew.iterInfo{i}.JacrossW(:,2), ...
-               'color',colors(i,:))
-            hold on
-            legendstr{i} = sprintf('Iteration %d',i);
-         end
-         xlabel('x ({\mu}m)')
-         ylabel('J [(A/({\mu}m)^2]')
-         title('Current distribution versus iteration number')
-         
-         legend(legendstr,'location','best');
+      % Plots the segments in the discretization:
+      function plotSegs(iew,dir,varargin)
+         % Plots the horizontal or vertical segments.
+         switch upper(dir)
+            case 'V'
+               for i = find(iew.edges.dir == 'v')'
+                  plot(iew.edges.xMid(i) + ...
+                     [-1 1 1 -1 -1]*iew.edges.w(i)/2, ...
+                     [1 1 0 0 1]*iew.nodes.y(iew.edges.N1(i)) + ...
+                     [0 0 1 1 0]*iew.nodes.y(iew.edges.N2(i)), ...
+                     varargin{:})
+                  hold on
+               end
+            case 'H'
+               for i = find(iew.edges.dir == 'h')'
+                  plot([1 0 0 1 1]*iew.nodes.x(iew.edges.N1(i)) + ...
+                     [0 1 1 0 0]*iew.nodes.x(iew.edges.N2(i)),...
+                     iew.edges.yMid(i) + ...
+                     [-1 -1 1 1 -1]*iew.edges.w(i)/2, varargin{:})
+                  hold on
+               end
+            otherwise
+               disp('Direction not recognized.')
+         end % switch
       end
       
       %% plotStream
       
-      function plotStreamline(iew)
-         % Function plots regularly spaced streamlines.
-         
-         
+      % Function plots regularly spaced streamlines:
+      function varargout = plotStreamline(iew)
+         % Eliminate nodes corresponding to crenellations:
          inds = iew.nodes.x > -iew.oDim(1)/2 & iew.nodes.y < iew.oDim(2)/2;
          x = unique(iew.nodes.x(inds));
          y = unique(iew.nodes.y(inds));
@@ -2086,21 +2235,10 @@ classdef iewasher < handle % Like a handle, but copyable
          Nstreams = 10;
          
          % Find indices that correspond to a slice across the bottom
-         % side of the washer along x = 0 (approximately):
-%          [y, J, inds] = iew.JindsAcrossLinewidth;
-%          inds = iew.edges.dir == 'h' & iew.edges.yMid < 0;
-%          x = iew.edges.xMid(inds);
-%          [~, xMinInd] = min(abs(x));
-%          inds = abs(iew.edges.xMid - x(xMinInd)) < 1e-3 & inds;
-%          assert(nnz(inds) > 0,'iewasher:plotStreamline:noInds',...
-%             'No vertical segments found to normalize current.')
-%          s1 = interp1(iew.edges.yMid(inds), -iew.edges.J(inds,1), ...
-%             'linear','pp');
-         
+         % side of the washer along x = 0 (approximately):         
          [y, J, inds] = iew.JindsAcrossLinewidth;
-         s1 = interp1(y, J, 'linear','pp');
+         s1 = interp1(y, J*iew.thickness, 'linear','pp');
          sInt = fnint(s1);
-         
          
          % Space the streamlines by integrated current. That way, density
          % of lines corresponds to density of current.
@@ -2117,94 +2255,10 @@ classdef iewasher < handle % Like a handle, but copyable
          streamHanR = streamline(X,Y,-Jx,-Jy, startx, starty);
          streamHan = [streamHanL; streamHanR];
          set(streamHan,'color','r')
-      end
-      
-      function plotSegs(iew,dir,varargin)
-         % Plots the horizontal or vertical segments.
-         switch upper(dir)
-            case 'V'
-               for i = find(iew.edges.dir == 'v')'
-                  plot(iew.edges.xMid(i) + ...
-                     [-1 1 1 -1 -1]*iew.edges.w(i)/2, ...
-                     [1 1 0 0 1]*iew.nodes.y(iew.edges.N1(i)) + ...
-                     [0 0 1 1 0]*iew.nodes.y(iew.edges.N2(i)), ...
-                     varargin{:})
-                  hold on
-               end
-            case 'H'
-               for i = find(iew.edges.dir == 'h')'
-                  plot([1 0 0 1 1]*iew.nodes.x(iew.edges.N1(i)) + ...
-                     [0 1 1 0 0]*iew.nodes.x(iew.edges.N2(i)),...
-                     iew.edges.yMid(i) + ...
-                     [-1 -1 1 1 -1]*iew.edges.w(i)/2, varargin{:})
-                  hold on
-               end
-            otherwise
-               disp('Direction not recognized.')
-         end % switch
-      end
-      
-      %% plotJfile
-      function plotJfile(iew)
          
-         filename = [iew.folder,'j_P1.mat'];
-         plotOn = true;
-         
-         J = dlmread(filename);
-         J(:,1:3) = J(:,1:3)*1e6; % convert units to um
-         
-         if abs(std(J(:,1))/mean(J(:,1))) < 1e-6 % x is constant
-            J(:,[1 4]) = [];
-         elseif abs(std(J(:,2))/mean(J(:,2))) < 1e-6 % y is constant
-            J(:,[2 5]) = [];
-         elseif abs(std(J(:,3))/mean(J(:,3))) < 1e-6 % z is constant
-            J(:,[3 6]) = [];
-         end
-         
-         if plotOn
-            switch size(J,2)
-               case 4, quiver(J(:,1),J(:,2),J(:,3),J(:,4))
-               case 6, quiver(J(:,1),J(:,2),J(:,4),J(:,5))
-            end
-            
-            xlabel('x ({\mu}m)'), ylabel('y ({\mu}m)')
-            hold on
-         end
-      end % function
-      
-      %% meshsize
-      function meshsize(iew)
-         fprintf(1,'There are %d nodes in the mesh.\n', ...
-            length(iew.nodes.ind));
-         fprintf(1,'There are %d segments in the mesh.\n', ...
-            length(iew.edges.ind));
-         
+         if nargout == 1, varargout{1} = streamHan; end
       end
-      
-      function [X,Y,JX,JY] = meshgrid(iew)
-         [X,Y] = meshgrid(unique(iew.nodes.x), unique(iew.nodes.y));
-         JX = nan(size(X));
-         JY = nan(size(Y));
-         for i=1:numel(JX)
-            ind = find(iew.nodes.x == X(i) & iew.nodes.y == Y(i));
-            if ~isempty(ind)
-               JX(i) = iew.nodes.J(ind,1);
-               JY(i) = iew.nodes.J(ind,2);
-            end
-         end
-      end
-      
-      
-      function gom = estGOM(iew)
-         % This function estimates the "goodness of mesh". It does a
-         % crappy job so don't believe it!
-         [X,Y,JX,JY] = iew.meshgrid;
-         [JXX, JXY] = gradient(JX);
-         [JYX, JYY] = gradient(JY);
-         JderivTot = JXX.^2 + JXY.^2 + JYX.^2 + JYY.^2;
-         gom = sum(sum(JderivTot(~isnan(JderivTot)).^2));
-      end
-      
+           
    end % methods
    
    methods (Static)
