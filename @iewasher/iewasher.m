@@ -101,16 +101,17 @@ classdef iewasher < handle
    
    properties (Dependent)
       % ----- Geometry properties -----
-      R
-      Rins  % R measured to inside of linewidth
-      Rout  % R measured to outside of linewidth
-      Rmid  % R measured to middle of the linewidth
       
-      W
-      RW
-      oDim
-      iDim
-      wGap
+      R     % R measured to outside of trace (um)
+      Rins  % R measured to inside of trace (um)
+      Rout  % R measured to outside of trace (um)
+      Rmid  % R measured to middle of the trace (um)
+      
+      W     % linewidth (um)
+      RW    % R/W
+      oDim  % Outer dimension of loop (um)
+      iDim  % Outer dimension of loop (um)
+      wGap  % Gap of slit (um)
       
       
       % ----- Solution properties -----
@@ -122,31 +123,27 @@ classdef iewasher < handle
       % linewidth. In other words, departures from a unity value are due to
       % other things, such as corners, ambiguity in the definition of R,
       % etc.
-      relPhi2AdjustedAnalyticToNumeric
+      relPhi2AdjustedAnalyticToNumeric      
+      % Summary of comparison of numeric to analytic answer
       relNumericAnalyticSummary
       
-      % Numerical properties:
-      gapMax
-      gapRel = 1
-      gapMode = 'rel'
+      % ----- Numerical properties -----
       
-      % Conversion factor from B^2 to Phi^2:
-      B2toPhi2
+      gapMax      % Maximum allowed "gap" that InductEx will allow
       
-      B2edge
-      Phi2surf
-      Phi2insEdge
-      Phi2outEdge
-      Phi2edge
-      Phi2tot
-      J        % current density: [x, y, Jx, Jy]
+      B2toPhi2    % Conversion factor from B^2 to Phi^2:
       
-      objData
+      B2edge      % <B_edge^2> * A_loop (T^2*um^2)
+      Phi2surf    % <Phi_surf^2> (Phi_0^2/Hz)
+      Phi2insEdge % <Phi_{inside edge}^2> (Phi_0^2/Hz)
+      Phi2outEdge % <Phi_{outside edge}^2> (Phi_0^2/Hz)
+      Phi2edge    % <Phi_edge^2> (Phi_0^2/Hz)
+      Phi2tot     % <Phi_total^2> (Phi_0^2/Hz)
+      J           % current density: [x, y, Jx, Jy] Units: um, (A/um^2)
       
-      folder
-   end
-   
-   properties (Constant)
+      objData     % Struct containing data for nondependent properties of object
+      
+      folder      % Path to *.exe FastHenry and InductEx programs
    end
    
    methods
@@ -191,6 +188,9 @@ classdef iewasher < handle
       
       %% writeObjData
       function writeObjData(iew, objData)
+         % Write object data to various fields in iewasher object
+         % (Used when performing a "deep" copy of an object)
+         
          fnames = fieldnames(objData);
          for i = 1:length(fnames)
             iew.(fnames{i}) = objData.(fnames{i});
@@ -405,8 +405,10 @@ classdef iewasher < handle
          iew.foldRoot = val;
       end
       
-      %% writeCIR
+      %% Write functions
       function writeCIR(iew)
+         % Write the CIR file (defines ports)
+         
          fid = fopen([iew.foldRoot,'washer.cir'],'wt');
          
          fprintf(fid,'* spice netlist for InductEx4\n');
@@ -419,8 +421,8 @@ classdef iewasher < handle
          fclose(fid);
       end
       
-      %% writeCIF
       function writeCIF(iew)
+         % Write CIF file (geometry)
          
          oDimCIF = iew.oDim*1000;
          iDimCIF = iew.iDim*1000;
@@ -494,7 +496,7 @@ classdef iewasher < handle
          
          % --------------- Write the file ---------------
          
-         fid = fopen([iew.foldRoot,'washer_test.cif'],'wt');
+         fid = fopen([iew.foldRoot,'washer.cif'],'wt');
          
          fprintf(fid,'(! CIF file made by santon)\n');
          fprintf(fid,'\n');
@@ -551,8 +553,9 @@ classdef iewasher < handle
          fclose(fid);
       end
       
-      %% writeLDF
       function writeLDF(iew)
+         % Write LDF file (material properties)
+         
          fid = fopen([iew.foldRoot,'UCBerkeley.ldf'],'wt');
          
          fprintf(fid,'*** Layer Definition File for UC Berkeley SQUID washers\n');
@@ -646,6 +649,7 @@ classdef iewasher < handle
       
       %% run
       function varargout = run(iew,varargin)
+         % run Run the iterative computation algorithm
          
          % ----- Interpret the input flags -----
          p = inputParser;
@@ -681,7 +685,7 @@ classdef iewasher < handle
                
                % Call InductEx with necessary switches
                [status, result] = dos(['chdir ', iew.foldRoot, ' & ', ...
-                  'inductex washer_test.cif -l UCBerkeley.ldf -i ', ...
+                  'inductex washer.cif -l UCBerkeley.ldf -i ', ...
                   'x.inp -fh -n washer.cir -k']);
                % Generated files:
                %     a.txt          = blank file
@@ -863,6 +867,8 @@ classdef iewasher < handle
       
       %% importJ
       function importJ(iew)
+         % Import the current distribution from the exported FastHenry file
+         
          % Read from text file:
          filename = [iew.foldRoot,'J_P1.mat'];
          assert(exist(filename,'file') == 2, ...
@@ -996,14 +1002,20 @@ classdef iewasher < handle
          iew.edges.J = iew.edges.J / normJ;
       end
       
-      %% updateCren
+      %% Crenellation functions
+      
       function updateCren(iew)
+         % Updates the crenellation widths (either default or auto)
+         
          switch upper(iew.cren.mode)
             case 'DEFAULT'
+               % This case defines the default crenellation widths that are
+               % used for the first iteration.
                
-               Nins = 8;
-               Nmid = 8;
-               Nout = 4;
+               % --- crenellations across linewdith ---
+               Nins = 8; % N crenellations on inside edge
+               Nmid = 8; % N crenellations in middle of segment
+               Nout = 4; % N crenellations on the outside edge
                
                iew.cren.line = zeros(Nins+Nmid+Nout,1);
                
@@ -1018,8 +1030,10 @@ classdef iewasher < handle
                iew.cren.line(Nins+Nmid) = ...
                   round(iew.W*1e3-sum(iew.cren.line));
                
-               Nout = 6;
-               Nmid = 14;
+               % --- crenellations across hole ---
+               
+               Nout = 6;  % N crenellations near the corners
+               Nmid = 14; % N crenellations in the middle
                
                iew.cren.hole = zeros(2*Nout+Nmid,1);
                iew.cren.hole(1:Nout) = (iew.W/100)*1e3;
@@ -1033,30 +1047,6 @@ classdef iewasher < handle
                iew.cren.hole(Nins+round(Nmid/2)) = ...
                   round(iew.iDim(1)*1e3-sum(iew.cren.hole));
                
-               % These are the default crenellations. They're not too good,
-               % but they seem good enough to get the first iteration of
-               % the automatic meshing to work.
-%                iew.cren.line = (iew.W/50)*1e3*ones(7,1);
-%                iew.cren.line = round(iew.cren.line/2)*2;
-%                iew.cren.line = [iew.cren.line; ...
-%                   round((iew.W*1e3-sum(iew.cren.line))/8)*ones(8,1)];
-%                iew.cren.line = round(iew.cren.line/2)*2;
-%                iew.cren.line(end) = ...
-%                   iew.W*1e3 - sum(iew.cren.line(1:end-1));
-%                iew.cren.line = round(iew.cren.line);
-%                assert(abs((sum(iew.cren.line)*1e-3 - iew.W)/iew.W) < 1e-6)
-               
-%                iew.cren.hole = (iew.iDim(1)/50)*1e3*ones(6,1);
-%                iew.cren.hole = round(iew.cren.hole/2)*2;
-%                N = max([round(((iew.iDim(1)-2*sum(iew.cren.hole)/1e3)/iew.oDim(1))*20),...
-%                   5]);
-%                iew.cren.hole = [iew.cren.hole; ...
-%                   round((iew.iDim(1)*1e3/2 - sum(iew.cren.hole))/(N+0.5)) * ...
-%                   ones(N,1) ];
-%                iew.cren.hole = round(iew.cren.hole/2)*2;
-%                iew.cren.hole = [iew.cren.hole; ...
-%                   iew.iDim(1)*1e3 - 2*sum(iew.cren.hole); ...
-%                   iew.cren.hole(end:-1:1)];
                assert(abs((sum(iew.cren.hole)*1e-3 - iew.iDim)/iew.iDim)...
                   < 1e-6, ...
                   'Initial hole crenellations don''t sum correctly.')
@@ -1066,30 +1056,19 @@ classdef iewasher < handle
                iew.calcAutoCren;
          end
       end
-      
-      %% calcAutoCren
+
       function calcAutoCren(iew)
+         % Calculates the automatic crenellation widths, defined based on
+         % the current distribution from the previous iteration.
+         
          % ----- Crenellations for the linewidth -----
          N = iew.cren.N(1);
          maxSegW = iew.W/8;
-         
-%          % Find the indices of the segments in the middle on the left:
-%          inds = iew.edges.dir == 'v' & iew.edges.xMid < 0;
-%          y = iew.edges.yMid(inds);
-%          [~, yMinInd] = min(abs(y));
-%          inds = inds & iew.edges.xMid > -iew.oDim(1)/2 & ...
-%             abs(iew.edges.yMid - y(yMinInd)) < 1e-3;
-%          assert(nnz(inds) > 0, 'iewasher:calcAutoCren:noLineIndsFound')
-%                
-%          % --- From the cross-section, optimize the segment widths ---
-%          iew.cren.line = iew.optimizeCrenWidths(...
-%             iew.edges.xMid(inds), iew.edges.J(inds,2), ...
-%             [-iew.oDim(1)/2, -iew.iDim(1)/2], N, maxSegW);
-         
+                  
          % --- From the cross-section, optimize the segment widths ---
          [y, J, ~] = iew.JindsAcrossLinewidth;
          iew.cren.line = iew.optimizeCrenWidths(...
-            y, J, [-iew.oDim(1)/2, -iew.iDim(1)/2], N, maxSegW);
+            y, J, [-iew.oDim(1)/2, -iew.iDim(1)/2], N, maxSegW);         
          
          
          % ----- Crenellations for the hole -----
@@ -1102,7 +1081,7 @@ classdef iewasher < handle
             abs(iew.edges.xMid - max(iew.edges.xMid(inds))) < 1e-3;
          assert(nnz(inds) > 0, 'iewasher:calcAutoCren:noHoleIndsFound')
          
-         % From the cross-section, optimize the segment widths:
+         % --- From the cross-section, optimize the segment widths ---
          iew.cren.hole = iew.optimizeCrenWidths(...
             iew.edges.yMid(inds), iew.edges.J(inds,2), ...
             [-iew.iDim(2)/2, iew.iDim(2)/2], N, maxSegW);
@@ -1120,9 +1099,10 @@ classdef iewasher < handle
                iew.cren.hole(inds(2):len)];
          end % if
       end % function
-      
-      %% optimizeCrenWidths
+
       function crenW = optimizeCrenWidths(iew,x,J,lims,N,maxSegW)
+         % Given a current distribution, optimize the crenellation widths
+         
          % Create a spline linear interpolation of the current density. I
          % tried other ways, but most methods don't extrapolate:
          % s1 = csapi(x,J);
@@ -1241,9 +1221,10 @@ classdef iewasher < handle
             plot(z, fnval(s1,z),'r+')
          end
       end
-      
-      %% plotOptimizedCrenWidths
+
       function plotOptimizedCrenWidths(iew)
+         % Plot the optimized crenellation widths, along with current
+         % density, for each of the iterations
          
          figure
          for i = 1:length(iew.iterInfo)
@@ -1427,7 +1408,8 @@ classdef iewasher < handle
          iew.nodes.A(inds) = nodeAreas;
       end
       
-      %% calcB
+      %% Magnetic field functions
+      
       function B = calcB(iew,x,y,z)
          % Calculate the magnetic field at arbitrary position
          
@@ -1492,10 +1474,8 @@ classdef iewasher < handle
          B = 0.1*B;
       end
       
-      %% calcBpar
       function B = calcBpar(iew,x,y,z)
-         % Calculate the magnetic field at arbitrary position using
-         % parallel loop
+         % Calculate the magnetic field at arbitrary position in parallel
          
          %{
           This function calculates the magnetic field at an arbitrary
@@ -1577,9 +1557,8 @@ classdef iewasher < handle
          % In other words, multiply the result by 0.1 to put B in units of
          % tesla.
          B = 0.1*B;
-      end % function
+      end
       
-      %% calcTotB
       function calcTotB(iew)
          % Calculate the average magnetic field and multiply by the total
          % area
@@ -1632,10 +1611,11 @@ classdef iewasher < handle
             sum(nodeAreas.*sum(B(:,1).^2,2)), ...
             sum(nodeAreas.*sum(B(:,2).^2,2)), ...
             sum(nodeAreas.*sum(B(:,3).^2,2)) ];
-      end % function
+      end
       
-      %% calBedge
       function calcBedge(iew)
+         % Calculate contribution of edge spins
+         
          %{
          This function calculates the contribution to flux noise due to
          spins on the edge of the film. That is, the spins spaced
@@ -1741,8 +1721,68 @@ classdef iewasher < handle
          iew.B2outEdge = iew.B2outEdge(:,1:3) + iew.B2outEdge(:,[2 1 3]);
       end
       
-      %% analyticFun
+      function visualizeB(iew,visType)
+         % Functions to visualize the magnetic field ('surface-field' or
+         % 'cross-section')
+         
+         switch upper(visType)
+            case 'SURFACE-FIELD'
+               % ----- Surface field -----
+               % This code calculates the magnetic field at the top surface
+               % of the washer and plots it.
+               
+               % Points at which the field is to be evaluated:
+               x = linspace(-1.1*iew.oDim(1)/2, 1.1*iew.oDim(1)/2, 30);
+               y = linspace(-1.1*iew.oDim(2)/2, 1.1*iew.oDim(2)/2, 30);
+               z = iew.thickness/2;
+               [X,Y] = meshgrid(x,y);
+               Z = z*ones(size(X));
+               
+               % Calculate the field at those points:
+               B = iew.calcBpar(X(:),Y(:),z);
+               % Plot the washer, then plot the magnetic field vectors:
+               iew.plotCIF;
+               quiver3(X(:), Y(:), Z(:), B(:,1), B(:,2), B(:,3), 'b')
+               
+            case 'CROSS-SECTION'
+               % ----- Cross section -----
+               % This code calculates the magnetic field in a vertical
+               % slice that goes through the washer film.
+               
+               % Points at which the magnetic field is to be evaluated:
+               x = linspace(-1.1*iew.oDim(1)/2, -0.9*iew.iDim(1)/2, 30);
+               y = 0;
+               z = linspace(-4*iew.thickness/2, 4*iew.thickness/2, 30);
+               [X,Z] = meshgrid(x,z);
+               Y = y*ones(size(X));
+               
+               % Calculate the magnetic field at specified points:
+               B = iew.calcBpar(X(:),y,Z(:));
+               
+               doPlotCIF = false;
+               if doPlotCIF
+                  % Calculate the field, then plot it:
+                  iew.plotCIF;
+                  quiver3(X(:), Y(:), Z(:), B(:,1), B(:,2), B(:,3), 'b')
+                  xlabel('x ({\mu}m)')
+                  ylabel('y ({\mu}m)')
+                  zlabel('z ({\mu}m)')
+               end;
+               
+               % Plot the cross section of the film:
+               patch(-[1 0 0 1 1]*iew.R-[0 1 1 0 0]*iew.iDim(1)/2,...
+                  [-1 -1 1 1 -1]*iew.thickness/2, ([0,176,240]+1)/256)
+               hold on
+               % Plot the vector field:
+               quiver(X(:), Z(:), B(:,1), B(:,3), 'b')
+               % axis equal
+               xlabel('x ({\mu}m)'), ylabel('z ({\mu}m)')
+         end % switch
+      end
+      
+      %% Functions related to analytic answer
       function analyticAns = analyticFun(iew,varargin)
+         % Calculate the analytic prediction for <Phi^2>
          
          p = inputParser;
          p.CaseSensitive = false;
@@ -1770,10 +1810,10 @@ classdef iewasher < handle
          analyticAns = analyticAns * 4/pi;
       end
       
-      %% analyticJacrossW
-      
-      % Normalized analytic current distribution across linewidth (J/um^2)
       function J = analyticJacrossW(iew,x,varargin)
+         % Calculate normalized analytic current distribution across
+         % linewidth (J/um^2)
+         
          % Interpret input arguments:
          p = inputParser;
          p.CaseSensitive = false;
@@ -1807,7 +1847,6 @@ classdef iewasher < handle
          J = J / iew.thickness;
       end
       
-      %% checkAnalyticFun
       function checkAnalyticFun(iew,varargin)
          % Check the accuracy of the analytic answer by comparing it to the
          % numerical answer.
@@ -1985,87 +2024,28 @@ classdef iewasher < handle
          end
       end
       
-      %% Visualize B
-      function visualizeB(iew,visType)
-         
-         % visType = 'cross-section';
-         % visType = 'surface-field';
-         switch upper(visType)
-            case 'SURFACE-FIELD'
-               % ----- Surface field -----
-               % This code calculates the magnetic field at the top surface
-               % of the washer and plots it.
-               
-               % Points at which the field is to be evaluated:
-               x = linspace(-1.1*iew.oDim(1)/2, 1.1*iew.oDim(1)/2, 30);
-               y = linspace(-1.1*iew.oDim(2)/2, 1.1*iew.oDim(2)/2, 30);
-               z = iew.thickness/2;
-               [X,Y] = meshgrid(x,y);
-               Z = z*ones(size(X));
-               
-               % Calculate the field at those points:
-               B = iew.calcBpar(X(:),Y(:),z);
-               % Plot the washer, then plot the magnetic field vectors:
-               iew.plotCIF;
-               quiver3(X(:), Y(:), Z(:), B(:,1), B(:,2), B(:,3), 'b')
-               
-            case 'CROSS-SECTION'
-               % ----- Cross section -----
-               % This code calculates the magnetic field in a vertical
-               % slice that goes through the washer film.
-               
-               % Points at which the magnetic field is to be evaluated:
-               x = linspace(-1.1*iew.oDim(1)/2, -0.9*iew.iDim(1)/2, 30);
-               y = 0;
-               z = linspace(-4*iew.thickness/2, 4*iew.thickness/2, 30);
-               [X,Z] = meshgrid(x,z);
-               Y = y*ones(size(X));
-               
-               % Calculate the magnetic field at specified points:
-               B = iew.calcBpar(X(:),y,Z(:));
-               
-               doPlotCIF = false;
-               if doPlotCIF
-                  % Calculate the field, then plot it:
-                  iew.plotCIF;
-                  quiver3(X(:), Y(:), Z(:), B(:,1), B(:,2), B(:,3), 'b')
-                  xlabel('x ({\mu}m)')
-                  ylabel('y ({\mu}m)')
-                  zlabel('z ({\mu}m)')
-               end;
-               
-               % Plot the cross section of the film:
-               patch(-[1 0 0 1 1]*iew.R-[0 1 1 0 0]*iew.iDim(1)/2,...
-                  [-1 -1 1 1 -1]*iew.thickness/2, ([0,176,240]+1)/256)
-               hold on
-               % Plot the vector field:
-               quiver(X(:), Z(:), B(:,1), B(:,3), 'b')
-               % axis equal
-               xlabel('x ({\mu}m)'), ylabel('z ({\mu}m)')
-         end % switch
-      end % function
-      
       %% Plot the current distribution
       
-      % Plot the current distribution at each node
       function plotJ(iew,varargin)
+         % Plot the current distribution at each node
          quiver(iew.nodes.x, iew.nodes.y, ...
             iew.nodes.J(:,1), iew.nodes.J(:,2), 'autoscalefactor',0.1, ...
             varargin{:})
          hold on
       end
       
-      % Plot the current distribution components. That is, plot x and y
-      % components separately, just as they are solved:
       function plotJcomp(iew,varargin)
+         % Plot the current distribution components. That is, plot x and y
+         % components separately, just as they are solved:
          quiver(iew.edges.xMid, iew.edges.yMid, ...
             iew.edges.J(:,1), iew.edges.J(:,2),varargin{:})
          hold on
       end
       
-      % Plot the current distribution across the linewidth as a function of
-      % iteration:
       function plotJacrossW(iew)
+         % Plot the current distribution across the linewidth as a function
+         % of iteration:
+      
          % Choose colors of the lines
          colors = copper(length(iew.iterInfo));
          colors = colors(end:-1:1,:);
@@ -2087,10 +2067,11 @@ classdef iewasher < handle
          legend(legendstr,'location','best');
       end
       
-      % Plots the current distribution across W using bars:
       function plotJbarsAcrossW(iew,varargin)
+         % Plots the current distribution across W using bars:
+         
          % Find info for the current distribution:
-         [x J inds] = iew.JindsAcrossLinewidth;
+         [x, J, inds] = iew.JindsAcrossLinewidth;
          w = iew.edges.w(inds);
          
          % Plot each component:
@@ -2109,8 +2090,10 @@ classdef iewasher < handle
          ylabel('J [(A/({\mu}m)^2]')
       end
       
-      % Plots exactly what in the file exported by FastHenry (j_P1.mat):
       function plotJfile(iew)
+         % Plots exactly what in the file exported by FastHenry (j_P1.mat),
+         % which may not correspond to the iew object (should maybe be a
+         % static method?)
          
          filename = [iew.foldRoot,'j_P1.mat'];
          plotOn = true;
@@ -2138,12 +2121,15 @@ classdef iewasher < handle
       end % function
       
       %% Other plotting:
+      
       function plotNodes(iew)
+         % Plot the locations of nodes
          plot(iew.nodes.x, iew.nodes.y,'.g')
          hold on
       end
       
       function plot(iew)
+         % Plot the washer and also the current distribution
          iew.writeCIF();
          iewasher.plotCIF();
          iew.plotJ();
@@ -2173,8 +2159,9 @@ classdef iewasher < handle
          if nargout == 1, varargout{1} = figHan; end
       end
       
-      % Plots the segments in the discretization:
       function plotSegs(iew,dir,varargin)
+         % Plots the segments in the discretization
+      
          % Plots the horizontal or vertical segments.
          switch upper(dir)
             case 'V'
@@ -2199,10 +2186,9 @@ classdef iewasher < handle
          end % switch
       end
       
-      %% plotStream
-      
-      % Function plots regularly spaced streamlines:
       function varargout = plotStreamline(iew)
+         % Function plots regularly spaced streamlines
+      
          % Eliminate nodes corresponding to crenellations:
          inds = iew.nodes.x > -iew.oDim(1)/2 & iew.nodes.y < iew.oDim(2)/2;
          x = unique(iew.nodes.x(inds));
@@ -2264,16 +2250,17 @@ classdef iewasher < handle
    methods (Static)
       %% plotCIF
       function plotCIF(filename)
+         % Plot the CIF file (independent of iewasher object)
+         
          if nargin == 0
-            filename = 'washer_test.cif';
+            filename = 'washer.cif';
          end
          
          % Import the CIF file, ignoring line breaks and only using
          % semicolons to break statements. We'll have to remove the
          % linebreaks from the string later.
          fid = fopen(filename);
-         CIFfile = textscan(fid,'%s', 'delimiter', ';', ...
-            'endofline',';');
+         CIFfile = textscan(fid,'%s', 'delimiter', ';', 'endofline',';');
          fclose(fid);
          CIFfile = CIFfile{1};
          
