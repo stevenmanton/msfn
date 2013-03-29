@@ -1,14 +1,14 @@
 % function batchIEW
 
-emailSelf = true;
+emailSelf = false;
 
 try
    N = 25;
    
    %% ----- Constant W, varying R -----
-%    R = [1.05 25];
-%    W = 1;
-%    constW1 = runBatchIEW('N',25, 'R',R,'W',W);
+   R = [1.05 25];
+   W = 1;
+   constW1 = runBatchIEW('N',25, 'R',R,'W',W);
    
 %    W = 2;
 %    R = [1.05 25]*W;
@@ -80,10 +80,10 @@ try
 %    MIT5B3 = runBatchIEW('R',R, 'W',W);
    
    %% ----- Constant R, W; varying lambda -----
-   Rs = 2;
-   Ws = 0.4;
-   lam = [20 200]/1e3; % Don't forget that the default units are um!!!
-   varyLamR2W04 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'lam',lam); % 6ks
+%    Rs = 2;
+%    Ws = 0.4;
+%    lam = [20 200]/1e3; % Don't forget that the default units are um!!!
+%    varyLamR2W04 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'lam',lam); % 6ks
    
 %    Rs = 3;
 %    Ws = 1;
@@ -95,22 +95,29 @@ try
 %    lam = [20 200]/1e3; % Don't forget that the default units are um!!!
 %    varyLamR10W3 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'lam',lam); % 8ks
    
-   Rs = 45;
-   Ws = 20;
-   lam = [20 200]/1e3; % Don't forget that the default units are um!!!
-   varyLamR45W20 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'lam',lam); % 6ks
+%    Rs = 45;
+%    Ws = 20;
+%    lam = [20 200]/1e3; % Don't forget that the default units are um!!!
+%    varyLamR45W20 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'lam',lam); % 6ks
    
-   %% ---- Constant R, W; varying b -----
+   %% ----- Constant R, W; varying b -----
    
 %    Rs = 5;
 %    Ws = 3;
 %    b = [20 200]/1e3; % Don't forget that the default units are um!!!
 %    varybR5W3 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'b',b); % 26ks
    
-   Rs = 2;
-   Ws = 0.4;
-   b = [20 200]/1e3; % Don't forget that the default units are um!!!
-   varyb25W04 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'b',b); % 5ks
+%    Rs = 2;
+%    Ws = 0.4;
+%    b = [20 200]/1e3; % Don't forget that the default units are um!!!
+%    varyb25W04 = runBatchIEW('N',N, 'R',Rs, 'W',Ws, 'b',b); % 5ks
+
+%% ----- Check convergence of answer -----
+   
+%    Rs = 5;
+%    Ws = 3;
+%    crenN = [18];
+%    varyCrenN = runBatchIEW('R',Rs, 'W',Ws, 'crenN',crenN); % XXks
    
 catch ME
    if emailSelf
@@ -119,6 +126,8 @@ catch ME
    end
 end
 
-sendGmail('santon@berkeley.edu', 'Simulations finished!')
+if emailSelf
+   sendGmail('santon@berkeley.edu', 'Simulations finished!')
+end
 
 % end

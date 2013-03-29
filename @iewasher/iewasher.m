@@ -90,8 +90,9 @@ classdef iewasher < handle
       
       % ----- Folder properties -----
       
-      % Folder where executables are stored
-      foldRoot = 'C:\Users\Clarke\Dropbox\Berkeley\MATLAB\github\msfn\bin\'
+      % Folder where FastHenry and InductEx executables are stored
+%       foldRoot = 'C:\Dropbox\Berkeley\MATLAB\github\msfn\bin\'
+      foldRoot = 'C:\test\'
       
       % ----- Plotting properties -----
       
@@ -142,8 +143,6 @@ classdef iewasher < handle
       J           % current density: [x, y, Jx, Jy] Units: um, (A/um^2)
       
       objData     % Struct containing data for nondependent properties of object
-      
-      folder      % Path to *.exe FastHenry and InductEx programs
    end
    
    methods
@@ -707,9 +706,9 @@ classdef iewasher < handle
                   error('iewasher:run','Error running InductEx')
                end
                
-               assert(exist([iewTemp.folder,'x.inp'],'file') == 2, ...
+               assert(exist([iewTemp.foldRoot,'x.inp'],'file') == 2, ...
                   'The file x.inp does not exist.')
-               assert(exist([iewTemp.folder,'J_P1.mat'],'file') == 2, ...
+               assert(exist([iewTemp.foldRoot,'J_P1.mat'],'file') == 2, ...
                   'iewasher:run:J_P1_missing',...
                   'The file J_P1.mat does not exist.')
                

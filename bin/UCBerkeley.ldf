@@ -1,7 +1,7 @@
 *** Layer Definition File for UC Berkeley SQUID washers
 *** Author: Coenrad Fourie
 *** Modified by: Steven Anton
-*** Last Modification: 01-Mar-2013
+*** Last Modification: 29-Mar-2013
 *** Info: Monolayer, assume Nb
 *
 $Parameters
@@ -12,7 +12,7 @@ Units             =  1e-6
 *    If your layout tool uses 1000 units per micron (XIC if not stripped for export), use 1000
 *    If you have no idea what this means, keep CIFUnitsPerMicron = 100
 CIFUnitsPerMicron =  1000
-gapMax            =  0.2
+gapMax            =  0.5
 AbsMin            =  0.002
 ProcessHasGroundPlane = FALSE
 LastDieLayerOrder =  1
