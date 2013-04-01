@@ -15,6 +15,7 @@ p.addParamValue('W',1,@(x) isnumeric(x) && all(x>0));
 p.addParamValue('lam',-1,@(x) isnumeric(x) && all(x>0));
 p.addParamValue('b',-1,@(x) isnumeric(x) && all(x>0));
 p.addParamValue('crenN',-1,@(x) (isnumeric(x) && all(x>0)) || iscell(x));
+p.addParamValue('iewArgs',{},@iscell)
 p.parse(varargin{:});
 N = p.Results.N;
 R = p.Results.R;
@@ -22,6 +23,7 @@ W = p.Results.W;
 lam = p.Results.lam;
 b = p.Results.b;
 crenN = p.Results.crenN;
+iewArgs = p.Results.iewArgs;
 
 % Determine if lambda and b were specified in the command line:
 lamSpecified = all(lam ~= -1);
@@ -91,7 +93,12 @@ elseif length(crenN) == 1 && crenN ~= -1
 elseif length(crenN) >= 2
    % All crenN specified as a vector:
    crenNmat = repmat(reshape(crenN,N,1),1,2);
-end   
+end
+
+% Default parameters for iewasher:
+if isempty(iewArgs)
+   iewArgs = {'maxIter',3,'calcbsurf','iter','calcbedge','end'};
+end
 
 %% ----- Run the batch -----
 
@@ -108,12 +115,11 @@ for i = 1:length(Ws)
    % Write b if specified:
    if bSpecified, iewAll(i).thickness = bs(i); end
    
-%    iewAll(i).cren.N = crenNmat(i,:);
-   iewAll(i).cren.N = [18 18];
+   iewAll(i).cren.N = crenNmat(i,:);
    iewAll(i).plotOptimizeCrenWidths = false;
    %    iewAll(i).run('maxIter',3,'plot')
-   iewAll(i).run('maxIter',3,'calcbsurf','iter','calcbedge','end');
-   %    iewAll(i).run('maxIter',3);
+   % iewAll(i).run('maxIter',3,'calcbsurf','iter','calcbedge','end');
+   iewAll(i).run(iewArgs{:});
    
    fprintf(1,'<Phi^2> for edges: \t%g\t%g\t%g\n', iewAll(i).Phi2edge);
 end

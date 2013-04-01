@@ -1,14 +1,14 @@
 % function batchIEW
 
-emailSelf = false;
+emailSelf = true;
 
 try
    N = 25;
    
    %% ----- Constant W, varying R -----
-   R = [1.05 25];
-   W = 1;
-   constW1 = runBatchIEW('N',25, 'R',R,'W',W);
+%    R = [1.05 25];
+%    W = 1;
+%    constW1 = runBatchIEW('N',25, 'R',R,'W',W);
    
 %    W = 2;
 %    R = [1.05 25]*W;
@@ -114,10 +114,28 @@ try
 
 %% ----- Check convergence of answer -----
    
-%    Rs = 5;
-%    Ws = 3;
-%    crenN = [18];
-%    varyCrenN = runBatchIEW('R',Rs, 'W',Ws, 'crenN',crenN); % XXks
+%    Rs = 10;
+%    Ws = 1;
+%    iewArgs = {'maxIter',3,'calcbsurf','iter','calcbedge','end'};
+%    
+%    crenN18 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',18,'iewargs',iewArgs); % XXks
+%    crenN24 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',24,'iewargs',iewArgs); % XXks
+%    crenN30 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',30,'iewargs',iewArgs); % XXks
+%    crenN36 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',36,'iewargs',iewArgs); % XXks
+%    
+%    varyCrenN_R10W1 = [crenN18, crenN24, crenN30, crenN36];
+   
+   Rs = 45;
+   Ws = 20;
+   iewArgs = {'maxIter',3,'calcbsurf','iter','calcbedge','end'};
+   
+   crenN18 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',18,'iewargs',iewArgs); % XXks
+   crenN24 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',24,'iewargs',iewArgs); % XXks
+   crenN30 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',30,'iewargs',iewArgs); % XXks
+   crenN36 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',36,'iewargs',iewArgs); % XXks
+   crenN42 = runBatchIEW('R',Rs, 'W',Ws, 'crenN',36,'iewargs',iewArgs); % XXks
+   
+   varyCrenN_R45W20 = [crenN18, crenN24, crenN30, crenN36, crenN42];
    
 catch ME
    if emailSelf
