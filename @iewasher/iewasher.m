@@ -91,8 +91,8 @@ classdef iewasher < handle
       % ----- Folder properties -----
       
       % Folder where FastHenry and InductEx executables are stored
-%       foldRoot = 'C:\Dropbox\Berkeley\MATLAB\github\msfn\bin\'
-      foldRoot = 'C:\test\'
+      foldRoot = 'C:\Dropbox\Berkeley\MATLAB\github\msfn\bin\'
+%       foldRoot = 'C:\test\bin\'
       
       % ----- Plotting properties -----
       
@@ -175,6 +175,14 @@ classdef iewasher < handle
          
          % Loop over properties and copy only if the ones that aren't
          % constants or dependents
+%          for i = 1:length(mc.Properties)
+%             if ~mc.Properties{i}.Dependent && ...
+%                   ~mc.Properties{i}.Constant
+%                iewB.(mc.Properties{i}.Name) = ...
+%                   iewA.(mc.Properties{i}.Name);
+%             end
+%          end
+         
          for i = 1:length(mc.PropertyList)
             if ~mc.PropertyList(i).Dependent && ...
                   ~mc.PropertyList(i).Constant
@@ -1012,6 +1020,7 @@ classdef iewasher < handle
                % used for the first iteration.
                
                % --- crenellations across linewdith ---
+%                Nins = 8; % N crenellations on inside edge
                Nins = 8; % N crenellations on inside edge
                Nmid = 8; % N crenellations in middle of segment
                Nout = 4; % N crenellations on the outside edge
@@ -1884,10 +1893,12 @@ classdef iewasher < handle
 %          JnormFactor = 1 / (quad(Jfun, -w/2, w/2) * iew.thickness);
          JnormFactor = 1 / (quad(Jfun, -x0, x0) * iew.thickness);
          
+         warning('off','MATLAB:rankDeficientMatrix');
          coeff = nlinfit(yJ+iew.R-w/2, J, ...
             @(c,x) c(1)*JfunFull(w,iew.thickness,iew.lambda,c(2),x), ...
             [JnormFactor, 0.5]);
          iew.aOptimum = coeff(2);
+         warning('on','MATLAB:rankDeficientMatrix');
          
          % Units of A^2/um^3
          % Janalytic = JnormFactor*Jfun(yJ+iew.R-w/2);
