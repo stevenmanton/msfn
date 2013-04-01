@@ -10,11 +10,14 @@
 #############
 
 a.txt
+b.mat
 fastout.out
 ix.cur
 j_P1.mat
 sol.txt
+UCBerkeley.ldf
 washer_test.cif
+washer.cif
+washer.cir
 x.inp
 Zc.mat
-washer.cir
